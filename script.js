@@ -1,68 +1,156 @@
+// ========== FIREBASE BAĞLANTISI ==========
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
+import { getDatabase, ref, set, get, child, update, remove } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-database.js";
+
+// Firebase yapılandırması
+const firebaseConfig = {
+    apiKey: "AIzaSyDMYWZ0q2OGxJ9z7IUcqJdkxZquYB2iuN8",
+    authDomain: "repo-pos.firebaseapp.com",
+    databaseURL: "https://repo-pos-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "repo-pos",
+    storageBucket: "repo-pos.firebasestorage.app",
+    messagingSenderId: "264929126590",
+    appId: "1:264929126590:web:493e95aa95ea334f2c16ef"
+};
+
+// Firebase'i başlat
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+// Global değişkenlere Firebase objelerini ekle (diğer fonksiyonlar kullanabilsin diye)
+window.db = db;
+window.ref = ref;
+window.get = get;
+window.set = set;
+window.update = update;
+window.child = child;
+window.remove = remove;
+
 // ========== VERİ YAPILARI ==========
-let users = [
-    { id: 1, username: "garson1", password: "123", role: "garson" },
-    { id: 2, username: "kasiyer1", password: "123", role: "kasiyer" },
-    { id: 3, username: "admin1", password: "123", role: "admin" }
-];
-
-let categories = [
-    { id: 1, name: "Ana Yemekler" },
-    { id: 2, name: "İçecekler" },
-    { id: 3, name: "Tatlılar" }
-];
-
-let tables = [
-    { id: 1, name: "Masa 01" },
-    { id: 2, name: "Masa 02" },
-    { id: 3, name: "Masa 03" },
-    { id: 4, name: "Masa 04" },
-    { id: 5, name: "Masa 05" },
-    { id: 6, name: "Masa 06" }
-];
-
-let products = [
-    { id: 1, name: "İskender Kebap", price: 180, categoryId: 1 },
-    { id: 2, name: "Adana Kebap", price: 160, categoryId: 1 },
-    { id: 3, name: "Lahmacun", price: 70, categoryId: 1 },
-    { id: 4, name: "Ayran", price: 20, categoryId: 2 },
-    { id: 5, name: "Kola", price: 25, categoryId: 2 },
-    { id: 6, name: "Künefe", price: 110, categoryId: 3 },
-    { id: 7, name: "Baklava", price: 85, categoryId: 3 }
-];
-
+let users = [];
+let categories = [];
+let tables = [];
+let products = [];
 let orders = {};
 let systemLogs = [];
 let currentUser = null;
 let selectedTableId = null;
 let selectedCategoryId = null;
 
-// ========== LOCALSTORAGE İŞLEMLERİ ==========
-function loadData() {
-    const storedUsers = localStorage.getItem("pos_users_full");
-    if(storedUsers) users = JSON.parse(storedUsers);
-    const storedCategories = localStorage.getItem("pos_categories");
-    if(storedCategories) categories = JSON.parse(storedCategories);
-    const storedTables = localStorage.getItem("pos_tables_full");
-    if(storedTables) tables = JSON.parse(storedTables);
-    const storedProducts = localStorage.getItem("pos_products_full");
-    if(storedProducts) products = JSON.parse(storedProducts);
-    const storedOrders = localStorage.getItem("pos_orders_full");
-    if(storedOrders) orders = JSON.parse(storedOrders);
-    const storedLogs = localStorage.getItem("pos_system_logs");
-    if(storedLogs) systemLogs = JSON.parse(storedLogs);
-    if(!orders) orders = {};
+// ========== FIREBASE VERİ İŞLEMLERİ ==========
+async function loadData() {
+    try {
+        // Kullanıcılar
+        const usersSnap = await get(ref(db, 'users'));
+        if(usersSnap.exists()) users = usersSnap.val();
+        else users = [];
+        
+        // Kategoriler
+        const categoriesSnap = await get(ref(db, 'categories'));
+        if(categoriesSnap.exists()) categories = categoriesSnap.val();
+        else categories = [];
+        
+        // Masalar
+        const tablesSnap = await get(ref(db, 'tables'));
+        if(tablesSnap.exists()) tables = tablesSnap.val();
+        else tables = [];
+        
+        // Ürünler
+        const productsSnap = await get(ref(db, 'products'));
+        if(productsSnap.exists()) products = productsSnap.val();
+        else products = [];
+        
+        // Siparişler
+        const ordersSnap = await get(ref(db, 'orders'));
+        if(ordersSnap.exists()) orders = ordersSnap.val();
+        else orders = {};
+        
+        // Loglar
+        const logsSnap = await get(ref(db, 'systemLogs'));
+        if(logsSnap.exists()) systemLogs = logsSnap.val();
+        else systemLogs = [];
+        
+        // Veri yoksa varsayılanları ekle
+        await ensureDefaultData();
+        
+    } catch(error) {
+        console.error("Veri yüklenirken hata:", error);
+        alert("Firebase bağlantı hatası! Sayfayı yenileyin.");
+    }
 }
 
-function saveAll() {
-    localStorage.setItem("pos_users_full", JSON.stringify(users));
-    localStorage.setItem("pos_categories", JSON.stringify(categories));
-    localStorage.setItem("pos_tables_full", JSON.stringify(tables));
-    localStorage.setItem("pos_products_full", JSON.stringify(products));
-    localStorage.setItem("pos_orders_full", JSON.stringify(orders));
-    localStorage.setItem("pos_system_logs", JSON.stringify(systemLogs));
+async function ensureDefaultData() {
+    let changed = false;
+    
+    if(users.length === 0) {
+        users = [
+            { id: 1, username: "garson1", password: "123", role: "garson" },
+            { id: 2, username: "kasiyer1", password: "123", role: "kasiyer" },
+            { id: 3, username: "admin1", password: "123", role: "admin" }
+        ];
+        changed = true;
+    }
+    
+    if(categories.length === 0) {
+        categories = [
+            { id: 1, name: "Ana Yemekler" },
+            { id: 2, name: "İçecekler" },
+            { id: 3, name: "Tatlılar" }
+        ];
+        changed = true;
+    }
+    
+    if(tables.length === 0) {
+        tables = [
+            { id: 1, name: "Masa 01" },
+            { id: 2, name: "Masa 02" },
+            { id: 3, name: "Masa 03" },
+            { id: 4, name: "Masa 04" },
+            { id: 5, name: "Masa 05" },
+            { id: 6, name: "Masa 06" }
+        ];
+        changed = true;
+    }
+    
+    if(products.length === 0) {
+        products = [
+            { id: 1, name: "İskender Kebap", price: 180, categoryId: 1 },
+            { id: 2, name: "Adana Kebap", price: 160, categoryId: 1 },
+            { id: 3, name: "Lahmacun", price: 70, categoryId: 1 },
+            { id: 4, name: "Ayran", price: 20, categoryId: 2 },
+            { id: 5, name: "Kola", price: 25, categoryId: 2 },
+            { id: 6, name: "Künefe", price: 110, categoryId: 3 },
+            { id: 7, name: "Baklava", price: 85, categoryId: 3 }
+        ];
+        changed = true;
+    }
+    
+    if(Object.keys(orders).length === 0) {
+        orders = {};
+        changed = true;
+    }
+    
+    if(changed) {
+        await saveAll();
+    }
 }
 
-function addLog(message, userRole = "system") {
+async function saveAll() {
+    try {
+        await Promise.all([
+            set(ref(db, 'users'), users),
+            set(ref(db, 'categories'), categories),
+            set(ref(db, 'tables'), tables),
+            set(ref(db, 'products'), products),
+            set(ref(db, 'orders'), orders),
+            set(ref(db, 'systemLogs'), systemLogs)
+        ]);
+    } catch(error) {
+        console.error("Veri kaydedilirken hata:", error);
+    }
+}
+
+async function addLog(message, userRole = "system") {
     const logEntry = { 
         time: new Date().toLocaleString('tr-TR'), 
         text: message, 
@@ -70,7 +158,7 @@ function addLog(message, userRole = "system") {
     };
     systemLogs.unshift(logEntry);
     if(systemLogs.length > 300) systemLogs.pop();
-    saveAll();
+    await saveAll();
     if(document.getElementById("adminLogViewer") && document.getElementById("adminModal").style.display === "flex") {
         renderAdminLogs();
     }
@@ -104,7 +192,7 @@ function renderTables() {
     });
 }
 
-function selectTable(tableId) {
+async function selectTable(tableId) {
     selectedTableId = tableId;
     selectedCategoryId = null;
     renderTables();
@@ -113,7 +201,7 @@ function selectTable(tableId) {
     renderCategories();
     renderCart();
     renderDynamicButtons();
-    addLog(`${tables.find(t => t.id === tableId)?.name} açıldı`, currentUser.role);
+    await addLog(`${tables.find(t => t.id === tableId)?.name} açıldı`, currentUser.role);
 }
 
 function updateTableHeader() {
@@ -186,7 +274,7 @@ function renderProducts() {
     });
 }
 
-function addItemToOrder(product) {
+async function addItemToOrder(product) {
     if(!currentUser || !selectedTableId) return;
     const tableOrders = getTableOrders(selectedTableId);
     const existing = tableOrders.find(item => item.productId === product.id);
@@ -201,26 +289,26 @@ function addItemToOrder(product) {
         });
     }
     orders[selectedTableId] = tableOrders;
-    saveAll();
-    addLog(`${product.name} eklendi (${tables.find(t => t.id === selectedTableId)?.name})`, currentUser.role);
+    await saveAll();
+    await addLog(`${product.name} eklendi (${tables.find(t => t.id === selectedTableId)?.name})`, currentUser.role);
     renderCart();
     renderTables();
 }
 
-function removeOrDecrease(productId) {
+async function removeOrDecrease(productId) {
     const tableOrders = getTableOrders(selectedTableId);
     const index = tableOrders.findIndex(item => item.productId === productId);
     if(index !== -1) {
         if(tableOrders[index].quantity > 1) {
             tableOrders[index].quantity -= 1;
-            addLog(`${tableOrders[index].productName} adet azaltıldı`, currentUser.role);
+            await addLog(`${tableOrders[index].productName} adet azaltıldı`, currentUser.role);
         } else {
             const removed = tableOrders[index].productName;
             tableOrders.splice(index, 1);
-            addLog(`${removed} sepetten kaldırıldı`, currentUser.role);
+            await addLog(`${removed} sepetten kaldırıldı`, currentUser.role);
         }
         orders[selectedTableId] = tableOrders;
-        saveAll();
+        await saveAll();
         renderCart();
         renderTables();
     }
@@ -297,7 +385,7 @@ function renderDynamicButtons() {
     }
 }
 
-function odemeYap(tip) {
+async function odemeYap(tip) {
     if(!selectedTableId) return;
     const total = tableTotal(selectedTableId);
     if(total === 0) { 
@@ -305,19 +393,19 @@ function odemeYap(tip) {
         return; 
     }
     const masaAd = tables.find(t => t.id === selectedTableId)?.name;
-    addLog(`${tip} ödeme alındı - Masa ${masaAd}, Tutar: ₺${total.toFixed(2)}`, currentUser.role);
+    await addLog(`${tip} ödeme alındı - Masa ${masaAd}, Tutar: ₺${total.toFixed(2)}`, currentUser.role);
     alert(`💰 ${tip} ödeme tamamlandı.\nMasa: ${masaAd}\nTutar: ₺${total.toFixed(2)}`);
     orders[selectedTableId] = [];
-    saveAll();
+    await saveAll();
     renderCart();
     renderTables();
 }
 
-function gunSonuSifirla() {
+async function gunSonuSifirla() {
     if(confirm("⚠️ Gün sonu sıfırlama yapılacak. Tüm masaların siparişleri silinecek ve günlük rapor sıfırlanacak. Devam etmek istiyor musunuz?")) {
         orders = {};
-        saveAll();
-        addLog("Gün sonu sıfırlama yapıldı. Tüm siparişler temizlendi.", "admin");
+        await saveAll();
+        await addLog("Gün sonu sıfırlama yapıldı. Tüm siparişler temizlendi.", "admin");
         renderTables();
         if(selectedTableId) {
             renderCart();
@@ -348,13 +436,13 @@ function renderAdminUsersTable() {
     });
 }
 
-function deleteUser(userId) {
+async function deleteUser(userId) {
     const userToDelete = users.find(u => u.id === userId);
     if(!userToDelete) return;
     if(confirm(`${userToDelete.username} kullanıcısını silmek istediğinize emin misiniz?`)) {
         users = users.filter(u => u.id !== userId);
-        saveAll();
-        addLog(`Kullanıcı silindi: ${userToDelete.username} (${userToDelete.role})`, "admin");
+        await saveAll();
+        await addLog(`Kullanıcı silindi: ${userToDelete.username} (${userToDelete.role})`, "admin");
         renderAdminUsersTable();
         renderAdminUsersList();
     }
@@ -408,35 +496,35 @@ function gunSonuRapor() {
     addLog("Gün sonu raporu alındı, ciro: " + ciro.toFixed(2), "admin");
 }
 
-function setupAdminEvents() {
+async function setupAdminEvents() {
     // Kullanıcı işlemleri
-    document.getElementById("adminAddUserBtn").onclick = () => {
+    document.getElementById("adminAddUserBtn").onclick = async () => {
         const uname = document.getElementById("newUserName").value;
         const pass = document.getElementById("newUserPass").value;
         const role = document.getElementById("newUserRoleSelect").value;
         if(!uname || !pass) return alert("Kullanıcı adı ve şifre gerekli!");
         users.push({ id: Date.now(), username: uname, password: pass, role });
-        saveAll(); 
-        addLog(`Yeni kullanıcı: ${uname} (${role})`, "admin"); 
+        await saveAll(); 
+        await addLog(`Yeni kullanıcı: ${uname} (${role})`, "admin"); 
         renderAdminUsersTable();
         document.getElementById("newUserName").value = "";
         document.getElementById("newUserPass").value = "";
     };
     
     // Kategori işlemleri
-    document.getElementById("addCategoryBtn").onclick = () => {
+    document.getElementById("addCategoryBtn").onclick = async () => {
         const cname = document.getElementById("newCategoryName").value;
         if(!cname) return alert("Kategori adı girin!");
         categories.push({ id: Date.now(), name: cname });
-        saveAll();
-        addLog(`Kategori eklendi: ${cname}`, "admin");
+        await saveAll();
+        await addLog(`Kategori eklendi: ${cname}`, "admin");
         renderCategories();
         renderDeleteCategorySelect();
         renderProductCategorySelect();
         document.getElementById("newCategoryName").value = "";
     };
     
-    document.getElementById("deleteCategoryBtn").onclick = () => {
+    document.getElementById("deleteCategoryBtn").onclick = async () => {
         const sel = document.getElementById("deleteCategorySelect");
         const id = parseInt(sel.value);
         const index = categories.findIndex(c => c.id === id);
@@ -446,8 +534,8 @@ function setupAdminEvents() {
             const deletedProducts = products.filter(p => p.categoryId === id);
             products = products.filter(p => p.categoryId !== id);
             if(selectedCategoryId === id) selectedCategoryId = null;
-            saveAll();
-            addLog(`Kategori silindi: ${catName} (${deletedProducts.length} ürün silindi)`, "admin");
+            await saveAll();
+            await addLog(`Kategori silindi: ${catName} (${deletedProducts.length} ürün silindi)`, "admin");
             renderCategories();
             renderDeleteCategorySelect();
             renderProductCategorySelect();
@@ -457,18 +545,18 @@ function setupAdminEvents() {
     };
     
     // Masa işlemleri
-    document.getElementById("addTableAdminBtn").onclick = () => {
+    document.getElementById("addTableAdminBtn").onclick = async () => {
         const tname = document.getElementById("newTableName").value;
         if(!tname) return;
         tables.push({ id: Date.now(), name: tname });
-        saveAll(); 
-        addLog(`Masa eklendi: ${tname}`, "admin"); 
+        await saveAll(); 
+        await addLog(`Masa eklendi: ${tname}`, "admin"); 
         renderTables(); 
         renderDeleteTableSelect();
         document.getElementById("newTableName").value = "";
     };
     
-    document.getElementById("deleteTableAdminBtn").onclick = () => {
+    document.getElementById("deleteTableAdminBtn").onclick = async () => {
         const sel = document.getElementById("deleteTableSelect");
         const id = parseInt(sel.value);
         const index = tables.findIndex(t => t.id === id);
@@ -479,52 +567,52 @@ function setupAdminEvents() {
                 selectedTableId = null;
                 showAdisyonPanel(false);
             }
-            saveAll(); 
-            addLog(`Masa silindi: ${tableName}`, "admin"); 
+            await saveAll(); 
+            await addLog(`Masa silindi: ${tableName}`, "admin"); 
             renderTables(); 
             renderDeleteTableSelect(); 
         }
     };
     
     // Ürün işlemleri
-    document.getElementById("addProductAdminBtn").onclick = () => {
+    document.getElementById("addProductAdminBtn").onclick = async () => {
         const catId = parseInt(document.getElementById("productCategorySelect").value);
         const pname = document.getElementById("newProductName").value;
         const price = parseFloat(document.getElementById("newProductPrice").value);
         if(!pname || isNaN(price)) return alert("Ürün adı ve fiyat girin!");
         products.push({ id: Date.now(), name: pname, price, categoryId: catId });
-        saveAll(); 
-        addLog(`Ürün eklendi: ${pname} ₺${price}`, "admin"); 
+        await saveAll(); 
+        await addLog(`Ürün eklendi: ${pname} ₺${price}`, "admin"); 
         if(selectedCategoryId === catId) renderProducts();
         renderEditProductSelect();
         document.getElementById("newProductName").value = "";
         document.getElementById("newProductPrice").value = "";
     };
     
-    document.getElementById("updateProductPriceBtn").onclick = () => {
+    document.getElementById("updateProductPriceBtn").onclick = async () => {
         const sel = document.getElementById("editProductSelect");
         const id = parseInt(sel.value);
         const newPrice = parseFloat(document.getElementById("updateProductPriceField").value);
         const product = products.find(p => p.id === id);
         if(product && !isNaN(newPrice)) { 
             product.price = newPrice; 
-            saveAll(); 
-            addLog(`Ürün fiyat güncellendi: ${product.name} yeni ₺${newPrice}`, "admin"); 
+            await saveAll(); 
+            await addLog(`Ürün fiyat güncellendi: ${product.name} yeni ₺${newPrice}`, "admin"); 
             if(selectedCategoryId === product.categoryId) renderProducts();
             renderCart();
             renderEditProductSelect(); 
         }
     };
     
-    document.getElementById("deleteProductAdminBtn").onclick = () => {
+    document.getElementById("deleteProductAdminBtn").onclick = async () => {
         const sel = document.getElementById("editProductSelect");
         const id = parseInt(sel.value);
         const index = products.findIndex(p => p.id === id);
         if(index !== -1) { 
             const productName = products[index].name;
             products.splice(index, 1); 
-            saveAll(); 
-            addLog(`Ürün silindi: ${productName}`, "admin"); 
+            await saveAll(); 
+            await addLog(`Ürün silindi: ${productName}`, "admin"); 
             if(selectedTableId) renderProducts();
             renderEditProductSelect(); 
             renderCart();
@@ -534,16 +622,16 @@ function setupAdminEvents() {
     // Rapor ve log işlemleri
     document.getElementById("gunSonuRaporBtn").onclick = gunSonuRapor;
     document.getElementById("gunSonuSifirlaBtn").onclick = gunSonuSifirla;
-    document.getElementById("clearLogsAdminBtn").onclick = () => { 
+    document.getElementById("clearLogsAdminBtn").onclick = async () => { 
         systemLogs = []; 
-        saveAll(); 
+        await saveAll(); 
         renderAdminLogs(); 
-        addLog("Loglar temizlendi", "admin"); 
+        await addLog("Loglar temizlendi", "admin"); 
     };
 }
 
 // ========== GİRİŞ/ÇIKIŞ İŞLEMLERİ ==========
-function login(username, password) {
+async function login(username, password) {
     const user = users.find(u => u.username === username && u.password === password);
     if(!user) { 
         document.getElementById("loginError").innerText = "Kullanıcı adı veya şifre hatalı!"; 
@@ -551,7 +639,7 @@ function login(username, password) {
         return false; 
     }
     currentUser = user;
-    addLog(`Giriş yapıldı: ${user.username} (${user.role})`, user.role);
+    await addLog(`Giriş yapıldı: ${user.username} (${user.role})`, user.role);
     
     document.getElementById("loginScreen").style.display = "none";
     document.getElementById("appMain").style.display = "block";
@@ -570,8 +658,8 @@ function login(username, password) {
     return true;
 }
 
-function logout() {
-    addLog(`Çıkış yapıldı: ${currentUser?.username}`, currentUser?.role);
+async function logout() {
+    await addLog(`Çıkış yapıldı: ${currentUser?.username}`, currentUser?.role);
     currentUser = null;
     selectedTableId = null;
     document.getElementById("appMain").style.display = "none";
@@ -596,8 +684,8 @@ function openAdminModal() {
 }
 
 // ========== SAYFA YÜKLENİNCE ==========
-window.onload = () => {
-    loadData();
+window.onload = async () => {
+    await loadData();
     document.getElementById("loginScreen").style.display = "flex";
     document.getElementById("appMain").style.display = "none";
     
@@ -617,19 +705,5 @@ window.onload = () => {
         }
     };
     
-    setupAdminEvents();
-    
-    if(users.length === 0) { 
-        users.push({id: 1, username: "admin1", password: "123", role: "admin"}); 
-        saveAll();
-    }
-    
-    if(categories.length === 0) {
-        categories = [
-            { id: 1, name: "Ana Yemekler" },
-            { id: 2, name: "İçecekler" },
-            { id: 3, name: "Tatlılar" }
-        ];
-        saveAll();
-    }
+    await setupAdminEvents();
 };
