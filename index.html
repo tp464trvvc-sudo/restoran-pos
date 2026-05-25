@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>RestoranPOS | Professional Restaurant Management System</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- GİRİŞ EKRANI -->
+    <div id="loginScreen" class="login-container">
+        <div class="login-card">
+            <div class="logo">
+                <i class="fas fa-utensils"></i>
+                <h1>Restoran<span>POS</span></h1>
+                <p>Professional Restaurant Management System</p>
+            </div>
+            <div class="input-group">
+                <label><i class="fas fa-user"></i> Kullanıcı Adı</label>
+                <input type="text" id="loginUsername" placeholder="kullanici_adi">
+            </div>
+            <div class="input-group">
+                <label><i class="fas fa-lock"></i> Şifre</label>
+                <input type="password" id="loginPassword" placeholder="••••••">
+            </div>
+            <button class="login-btn" id="doLoginBtn">Giriş Yap</button>
+            <div id="loginError" class="error-msg"></div>
+            <div class="demo-info">
+                <i class="fas fa-info-circle"></i> Demo: garson1 / 123 | kasiyer1 / 123 | admin1 / 123
+            </div>
+        </div>
+    </div>
+
+    <!-- ANA UYGULAMA -->
+    <div id="appMain" class="app-main">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="logo-area">
+                <i class="fas fa-utensil-spoon"></i>
+                <span class="brand">Restoran<span>POS</span></span>
+                <span class="subtitle">| Professional Edition</span>
+            </div>
+            <div class="user-area">
+                <div class="user-info">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="currentUserName">Kullanıcı</span>
+                    <span class="role-badge" id="currentUserRoleLabel">rol</span>
+                </div>
+                <button id="adminPanelHeaderBtn" class="admin-btn">
+                    <i class="fas fa-cog"></i> Admin Paneli
+                </button>
+                <button id="logoutHeaderBtn" class="logout-btn">
+                    <i class="fas fa-sign-out-alt"></i> Çıkış
+                </button>
+            </div>
+        </header>
+
+        <!-- Dashboard -->
+        <div class="dashboard">
+            <!-- Sol Panel: Masalar -->
+            <aside class="tables-sidebar">
+                <div class="sidebar-header">
+                    <h3><i class="fas fa-table"></i> Masalar</h3>
+                </div>
+                <div id="tablesContainer" class="tables-grid"></div>
+            </aside>
+
+            <!-- Sağ Panel: Adisyon -->
+            <main class="adet-panel" id="adetPanel">
+                <div class="panel-header">
+                    <h2><i class="fas fa-receipt"></i> Adisyon Yönetimi</h2>
+                    <div class="masa-badge">
+                        <i class="fas fa-chair"></i> Masa <span id="masaAdiHeader">Seçilmedi</span>
+                    </div>
+                </div>
+                
+                <!-- Kategoriler -->
+                <div class="categories-section" id="categoriesSection" style="display: none;">
+                    <h3><i class="fas fa-folder-open"></i> Kategoriler</h3>
+                    <div id="categoriesList" class="categories-grid"></div>
+                </div>
+
+                <!-- Ürünler -->
+                <div class="products-section" id="productsSection" style="display: none;">
+                    <h3><i class="fas fa-hamburger"></i> Ürünler</h3>
+                    <div id="productsList" class="products-grid"></div>
+                </div>
+
+                <!-- Sepet -->
+                <div class="cart-section" id="cartSection" style="display: none;">
+                    <div class="cart-header">
+                        <span><i class="fas fa-shopping-cart"></i> Sipariş Detayı</span>
+                        <span>Miktar / Tutar</span>
+                    </div>
+                    <div id="cartItemsArea" class="cart-items"></div>
+                    <div class="cart-footer">
+                        <div class="total-line">
+                            <span>Toplam</span>
+                            <span class="total-amount"><i class="fas fa-lira-sign"></i> <span id="cartTotalAmount">0.00</span></span>
+                        </div>
+                        <div id="dynamicActionButtons" class="action-buttons"></div>
+                    </div>
+                </div>
+                
+                <!-- Masa seçilmedi mesajı -->
+                <div id="noTableSelected" class="no-table-message">
+                    <i class="fas fa-hand-pointer"></i>
+                    <span>Sol panelden bir masa seçin</span>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- ADMIN MODAL -->
+    <div id="adminModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-cog"></i> Admin Yönetim Paneli</h2>
+                <span class="close-modal" id="closeAdminModal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <!-- Kullanıcı Yönetimi -->
+                <div class="admin-section">
+                    <h3><i class="fas fa-users"></i> Kullanıcılar</h3>
+                    <div class="form-row">
+                        <input type="text" id="newUserName" placeholder="Kullanıcı adı">
+                        <input type="password" id="newUserPass" placeholder="Şifre">
+                        <select id="newUserRoleSelect">
+                            <option value="garson">Garson</option>
+                            <option value="kasiyer">Kasiyer</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                        <button id="adminAddUserBtn" class="btn-primary">
+                            <i class="fas fa-plus"></i> Ekle
+                        </button>
+                    </div>
+                    <div class="users-table-wrapper">
+                        <table class="users-table" id="usersTable">
+                            <thead>
+                                <tr>
+                                    <th>Kullanıcı Adı</th>
+                                    <th>Rol</th>
+                                    <th>İşlemler</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Kategori Yönetimi -->
+                <div class="admin-section">
+                    <h3><i class="fas fa-folder-tree"></i> Kategori Yönetimi</h3>
+                    <div class="form-row">
+                        <input type="text" id="newCategoryName" placeholder="Kategori adı">
+                        <button id="addCategoryBtn" class="btn-primary">
+                            <i class="fas fa-plus"></i> Kategori Ekle
+                        </button>
+                        <select id="deleteCategorySelect"></select>
+                        <button id="deleteCategoryBtn" class="btn-danger">
+                            <i class="fas fa-trash"></i> Sil
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Masa Yönetimi -->
+                <div class="admin-section">
+                    <h3><i class="fas fa-chair"></i> Masa Yönetimi</h3>
+                    <div class="form-row">
+                        <input type="text" id="newTableName" placeholder="Masa İsmi">
+                        <button id="addTableAdminBtn" class="btn-primary">
+                            <i class="fas fa-plus"></i> Ekle
+                        </button>
+                        <select id="deleteTableSelect"></select>
+                        <button id="deleteTableAdminBtn" class="btn-danger">
+                            <i class="fas fa-trash"></i> Sil
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Ürün Yönetimi -->
+                <div class="admin-section">
+                    <h3><i class="fas fa-boxes"></i> Ürün Yönetimi</h3>
+                    <div class="form-row">
+                        <select id="productCategorySelect"></select>
+                        <input type="text" id="newProductName" placeholder="Ürün adı">
+                        <input type="number" id="newProductPrice" placeholder="Fiyat" step="0.01">
+                        <button id="addProductAdminBtn" class="btn-primary">
+                            <i class="fas fa-plus"></i> Ekle
+                        </button>
+                    </div>
+                    <div class="form-row">
+                        <select id="editProductSelect"></select>
+                        <input type="number" id="updateProductPriceField" placeholder="Yeni fiyat" step="0.01">
+                        <button id="updateProductPriceBtn" class="btn-primary">
+                            <i class="fas fa-save"></i> Güncelle
+                        </button>
+                        <button id="deleteProductAdminBtn" class="btn-danger">
+                            <i class="fas fa-trash"></i> Sil
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Loglar ve Rapor -->
+                <div class="admin-section">
+                    <h3><i class="fas fa-chart-line"></i> Gün Sonu & Loglar</h3>
+                    <div class="form-row">
+                        <button id="gunSonuRaporBtn" class="btn-primary">
+                            <i class="fas fa-file-alt"></i> Rapor Al
+                        </button>
+                        <button id="gunSonuSifirlaBtn" class="btn-danger">
+                            <i class="fas fa-sync-alt"></i> Gün Sonu Sıfırla
+                        </button>
+                        <button id="clearLogsAdminBtn" class="btn-secondary">
+                            <i class="fas fa-eraser"></i> Logları Temizle
+                        </button>
+                    </div>
+                    <div id="raporDiv" class="rapor-alani"></div>
+                    <div class="logs-area" id="adminLogViewer">Loglar yükleniyor...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
